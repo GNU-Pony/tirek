@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
+import os
 import sys
 import fcntl
 import struct
@@ -25,6 +26,7 @@ import termios
 import threading
 
 
+middle_selection = 1
 bottom_selection = 1
 
 
@@ -76,12 +78,46 @@ def interface_loop():
             top = ''
             top += ' ' * (width - len(top))
             
+            middle = create_interface_middle()
             bottom = create_interface_bottom()
             
-            printf('\033[H\033[2J\033[07m%s\033[27m\033[%i;1H%s', top, height, bottom)
+            printf('\033[H\033[2J\033[07m%s\033[27m\033[%i;1H%s\033[%i;1H%s',
+                   top, height - 10, middle, height, bottom)
             refresh_cond.wait()
         finally:
             refresh_cond.release()
+
+
+def create_interface_middle():
+    tabs = [ 'Status'
+           , 'Details'
+           , 'Peers'
+           , 'Options'
+           ]
+    
+    tabs = [' %s ' % t for t in tabs]
+    selection = abs(middle_selection)
+    
+    if middle_selection > 0:
+        selected_pattern = '\033[44m\033[27m%s\033[07m\033[00;07m'
+    else:
+        selected_pattern = '\033[01;44m%s\033[00;07m'
+    
+    if len('  '.join(tabs)) > width:
+        if selection == 0:
+            tabs = [tabs[selection - 1]]
+        else:
+            tabs = tabs[:1]
+        if len(tabs[0]) > width:
+            tabs[0] = tabs[0][1 : -1]
+        if len(tabs[0]) > width:
+            tabs[0] = tabs[0][:width]
+    
+    ftabs = [(selected_pattern if selection == i + 1 else '%s') % tabs[i] for i in range(len(tabs))]
+    
+    pad = ' ' * (width - len('  '.join(tabs)))
+    middle = '  '.join(ftabs)
+    return '\033[07m' + middle + pad + '\033[00m'
 
 
 def create_interface_bottom():
@@ -91,7 +127,7 @@ def create_interface_bottom():
     @return  :str  The text to print on the bottom of the screen
     '''
     # Status delimiters
-    start, sep, final = '', '  │  ', '  │'
+    sep = '  '
     
     # Status titles
     titles = [ 'Connections'
@@ -121,7 +157,7 @@ def create_interface_bottom():
     titles = [t + ': ' for t in titles] + ['']
     
     # Calculate length of the text
-    len0 = len(sep.join(fields))
+    len0 = len((sep + '  ').join(fields)) + 2
     
     # Truncate the status bar if the screen is not width enough
     selection = bottom_selection
@@ -132,10 +168,10 @@ def create_interface_bottom():
         patterns = [patterns[sel]]
         fields = [fields[sel]]
         selection = 0
-        len0 = len(sep.join(fields))
+        len0 = len((sep + '  ').join(fields)) + 2
         start = final = ''
         if len0 > width:
-            fields[0] = fields[0][:width]
+            fields[0] = fields[0][:width - 2]
             len0 = width
     
     # Calculate the length of the text if it was extended with:
@@ -156,25 +192,17 @@ def create_interface_bottom():
         len0 = len1a
     
     # Highlight selected field
-    formats = { True  : '\033[00;07;01;44m%s\033[00;07m'
-              , False : '\033[00;07m%s'
+    formats = { True  : '\033[00;44m %s \033[00;07m'
+              , False : '\033[00;07m %s '
               }
     fields = [formats[selection == i] % fields[i] for i in range(len(fields))]
     
     # Join the fields
     bottom = sep.join(fields)
     
-    # Add edges if they fit
-    if len0 + len(final) <= width:
-        bottom = bottom + final
-        len0 += len(final)
-    if len0 + len(start) <= width:
-        bottom = start + bottom
-        len0 += len(start)
-    
     # Pad the right to the width
     if len0 < width:
-        bottom += '\033[07m' + (' ' * (width - len0)) + '\033[00m'
+        bottom += '\033[07m' + ' ' * (width - len0) + '\033[00m'
     
     return bottom
 
