@@ -1,0 +1,12 @@
+_/
+bin/
+obj/
+\#*\#
+.*
+!.git*
+*~
+__pycache__/
+*.py[co]
+*.sw[op]
+*.bak
+
