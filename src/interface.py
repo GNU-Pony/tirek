@@ -26,8 +26,9 @@ import termios
 import threading
 
 
-middle_selection = 1
-bottom_selection = 1
+top_selection = 0
+middle_selection = ~0
+bottom_selection = ~0
 
 
 def printf(format, *args):
@@ -75,46 +76,98 @@ def interface_loop():
     while True:
         refresh_cond.acquire()
         try:
-            top = ''
-            top += ' ' * (width - len(top))
-            
+            top = create_interface_top()
             middle = create_interface_middle()
             bottom = create_interface_bottom()
             
             printf('\033[H\033[2J\033[07m%s\033[27m\033[%i;1H%s\033[%i;1H%s',
-                   top, height - 10, middle, height, bottom)
+                   top, max(height - 10, 1), middle, height, bottom)
             refresh_cond.wait()
         finally:
             refresh_cond.release()
 
 
+def create_interface_top():
+    '''
+    Construct the master tabs for the top of the screen
+    
+    @return  :str  The text to print on the top of the screen
+    '''
+    # Tab titles
+    tabs = [ 'Torrents'
+           , 'States and trackers'
+           , 'Preferences'
+           , 'Help'
+           ]
+    
+    # Surround the tab titles with spaces
+    tabs = [' %s ' % t for t in tabs]
+    
+    # Get selection and format of selection depending on focus
+    if top_selection >= 0:
+        selected_pattern = '\033[44m\033[27m%s\033[07m\033[00;07m'
+        selection = top_selection
+    else:
+        selected_pattern = '\033[01;44m%s\033[00;07m'
+        selection = ~top_selection
+    
+    # Truncate the tab bar if the screen is too small
+    if len('  '.join(tabs)) > width:
+        tabs = [tabs[selection]]
+        if len(tabs[0]) > width:
+            tabs[0] = tabs[0][1 : -1]
+        if len(tabs[0]) > width:
+            tabs[0] = tabs[0][:width]
+    
+    # Format tabs
+    ftabs = [(selected_pattern if selection == i else '%s') % tabs[i] for i in range(len(tabs))]
+    
+    # Pad the bar to fit the full width of the screen and format the bar
+    pad = ' ' * (width - len('  '.join(tabs)))
+    top = '  '.join(ftabs)
+    return '\033[07m' + top + pad + '\033[00m'
+
+
 def create_interface_middle():
+    '''
+    Construct the torrent information tabs for the "middle" of the screen
+    
+    @return  :str  The text to print in the "middle" of the screen
+    '''
+    # Exclude if the screen it too small
+    if height < 18:
+        return ''
+    
+    # Tab titles
     tabs = [ 'Status'
            , 'Details'
            , 'Peers'
            , 'Options'
            ]
     
+    # Surround the tab titles with spaces
     tabs = [' %s ' % t for t in tabs]
-    selection = abs(middle_selection)
     
-    if middle_selection > 0:
+    # Get selection and format of selection depending on focus
+    if middle_selection >= 0:
         selected_pattern = '\033[44m\033[27m%s\033[07m\033[00;07m'
+        selection = middle_selection
     else:
         selected_pattern = '\033[01;44m%s\033[00;07m'
+        selection = ~middle_selection
     
+    # Truncate the tab bar if the screen is too small
     if len('  '.join(tabs)) > width:
-        if selection == 0:
-            tabs = [tabs[selection - 1]]
-        else:
-            tabs = tabs[:1]
+        tabs = [tabs[selection]]
         if len(tabs[0]) > width:
             tabs[0] = tabs[0][1 : -1]
         if len(tabs[0]) > width:
             tabs[0] = tabs[0][:width]
     
-    ftabs = [(selected_pattern if selection == i + 1 else '%s') % tabs[i] for i in range(len(tabs))]
+    # Format tabs
+    ftabs = [(selected_pattern if selection == i else '%s') % tabs[i] for i in range(len(tabs))]
     
+    # Pad the bar to fit the full width of the screen and format the bar
     pad = ' ' * (width - len('  '.join(tabs)))
     middle = '  '.join(ftabs)
     return '\033[07m' + middle + pad + '\033[00m'
@@ -126,7 +179,7 @@ def create_interface_bottom():
     
     @return  :str  The text to print on the bottom of the screen
     '''
-    # Status delimiters
+    # Status delimiter
     sep = '  '
     
     # Status titles
@@ -144,7 +197,7 @@ def create_interface_bottom():
              ]
     
     # Status field patterns
-    patterns = [ '%i(%i)'
+    patterns = [ '%i (%i)'
                , '%.1f %s/s↓ %.1f %s/s↑'
                , '%.2f↓ %.2f↑ KB/s'
                , '%i'
