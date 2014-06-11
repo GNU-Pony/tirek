@@ -81,7 +81,7 @@ def interface_loop():
             bottom = create_interface_bottom()
             
             printf('\033[H\033[2J\033[07m%s\033[27m\033[%i;1H%s\033[%i;1H%s',
-                   top, max(height - 10, 1), middle, height, bottom)
+                   top, max(height - 11, 1), middle, max(height - 1, 1), bottom)
             refresh_cond.wait()
         finally:
             refresh_cond.release()
@@ -135,7 +135,7 @@ def create_interface_middle():
     @return  :str  The text to print in the "middle" of the screen
     '''
     # Exclude if the screen it too small
-    if height < 18:
+    if height < 19:
         return ''
     
     # Tab titles
