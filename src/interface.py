@@ -61,7 +61,7 @@ def run_interface():
 
 def sigwinch_handler(_signal, _frame):
     '''
-    Handler for the SIGWINCH singnal
+    Handler for the SIGWINCH signal
     '''
     global height, width
     (height, width) = struct.unpack('hh', fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, '1234'))
