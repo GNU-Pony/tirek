@@ -28,7 +28,7 @@ import threading
 
 top_selection = 0
 middle_selection = ~0
-bottom_selection = ~0
+bottom_selection = ~2
 
 
 def printf(format, *args):
@@ -215,14 +215,13 @@ def create_interface_bottom():
     # Truncate the status bar if the screen is not width enough
     selection = bottom_selection
     if len0 > width:
-        sel = max(bottom_selection, 0)
+        sel = max(bottom_selection, ~bottom_selection)
         titles = [titles[sel]]
         values = [values[sel]]
         patterns = [patterns[sel]]
         fields = [fields[sel]]
-        selection = 0
+        selection = ~0 if bottom_selection < 0 else 0
         len0 = len((sep + '  ').join(fields)) + 2
-        start = final = ''
         if len0 > width:
             fields[0] = fields[0][:width - 2]
             len0 = width
@@ -230,7 +229,7 @@ def create_interface_bottom():
     # Calculate the length of the text if it was extended with:
     #   a) The title of the selected field
     #   b) The title of all fields
-    len1a = len0 + len(titles[selection])
+    len1a = len0 + len(titles[max(selection, -1)])
     len1b = len0 + sum(len(t) for t in titles)
     
     # Extend the text with either the title of all fields,
