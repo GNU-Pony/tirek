@@ -198,6 +198,8 @@ def next_input():
         if esc == 1:
             if c == '[':
                 esc = 2
+            elif (len(buf) < 2) and (c == '\033'):
+                continue
             else:
                 break
         elif esc == 2:
