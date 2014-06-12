@@ -143,7 +143,7 @@ def input_loop():
                 refresh_cond.notify()
             finally:
                 refresh_cond.release()
-        elif c == '\033[C':
+        elif c in ('\033[C', '\033[1;5C'):
             refresh_cond.acquire()
             try:
                 if bar_selection == 0:
@@ -156,7 +156,7 @@ def input_loop():
                 refresh_cond.notify()
             finally:
                 refresh_cond.release()
-        elif c == '\033[D':
+        elif c in ('\033[D', '\033[1;5D'):
             refresh_cond.acquire()
             try:
                 if bar_selection == 0:
