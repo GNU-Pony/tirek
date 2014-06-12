@@ -71,20 +71,28 @@ def run_interface():
     (height, width) = struct.unpack('hh', fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, '1234'))
     signal.signal(signal.SIGWINCH, sigwinch_handler)
     
+    # Get TTY settings
     saved_stty = termios.tcgetattr(sys.stdout.fileno())
     stty = termios.tcgetattr(sys.stdout.fileno())
+    # Modify TTY settings
     stty[3] &= ~(termios.ICANON | termios.ECHO | termios.ISIG)
+    # Initialise terminal and hide cursor
     printf('\033[?1049h\033[?25l')
     try:
+        # Apply now TTY settings
         termios.tcsetattr(sys.stdout.fileno(), termios.TCSAFLUSH, stty)
         
+        # Start input loop
         input_thread = threading.Thread(target = input_loop)
         input_thread.setDaemon(True)
         input_thread.start()
         
+        # Start interface redraw loop
         interface_loop()
     finally:
+        # Restore old TTY setting
         termios.tcsetattr(sys.stdout.fileno(), termios.TCSAFLUSH, saved_stty)
+        # Show cursor and terminate terminal
         printf('\033[?25h\033[?1049l')
 
 
