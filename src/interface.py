@@ -29,6 +29,7 @@ import threading
 top_selection = 0
 middle_selection = ~0
 bottom_selection = ~2
+running = True
 
 
 def printf(format, *args):
@@ -53,6 +54,11 @@ def run_interface():
     printf('\033[?1049h\033[?25l')
     try:
         termios.tcsetattr(sys.stdout.fileno(), termios.TCSAFLUSH, stty)
+        
+        input_thread = threading.Thread(target = input_loop)
+        input_thread.setDaemon(True)
+        input_thread.start()
+        
         interface_loop()
     finally:
         termios.tcsetattr(sys.stdout.fileno(), termios.TCSAFLUSH, saved_stty)
@@ -72,8 +78,20 @@ def sigwinch_handler(_signal, _frame):
         refresh_cond.release()
 
 
+def input_loop():
+    global running
+    while running:
+        input()
+        refresh_cond.acquire()
+        try:
+            running = False
+            refresh_cond.notify()
+        finally:
+            refresh_cond.release()
+
+
 def interface_loop():
-    while True:
+    while running:
         refresh_cond.acquire()
         try:
             top = create_interface_top()
