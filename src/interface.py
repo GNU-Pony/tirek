@@ -205,7 +205,7 @@ def next_input():
     '''
     Read the next input for stdin
     
-    @return  The next input, can be an escape sequence
+    @return  :str  The next input, can be an escape sequence
     '''
     buf = ''
     esc = 0
