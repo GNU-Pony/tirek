@@ -60,7 +60,7 @@ running = True
 update_queue = []
     
 
-def printf(format, *args, flush = True):
+def printf(format, *args, flush = False):
     text = format % args
     sys.stdout.buffer.write(text.encode('utf-8'))
     if flush:
@@ -90,7 +90,7 @@ def run_interface():
     # Modify TTY settings
     stty[3] &= ~(termios.ICANON | termios.ECHO | termios.ISIG)
     # Initialise terminal and hide cursor
-    printf('\033[?1049h\033[?25l')
+    printf('\033[?1049h\033[?25l', flush = True)
     try:
         # Apply now TTY settings
         termios.tcsetattr(sys.stdout.fileno(), termios.TCSAFLUSH, stty)
@@ -106,7 +106,7 @@ def run_interface():
         # Restore old TTY setting
         termios.tcsetattr(sys.stdout.fileno(), termios.TCSAFLUSH, saved_stty)
         # Show cursor, clear screen and terminate terminal
-        printf('\033[?25h\033[H\033[2J\033[?1049l')
+        printf('\033[?25h\033[H\033[2J\033[?1049l', flush = True)
 
 
 def sigwinch_handler(_signal, _frame):
@@ -258,43 +258,57 @@ def next_input():
 
 
 def interface_loop():
-    global first_line_help
     while running:
         refresh_cond.acquire()
         try:
-            top = create_interface_top()
-            middle = create_interface_middle()
-            bottom = create_interface_bottom()
-            
             if len(update_queue) == 0:
-                printf('\033[H\033[2J\033[07m%s\033[27m\033[%i;1H%s\033[%i;1H%s',
-                       top, max(height - 11, 1), middle, max(height - 1, 1), bottom)
-            else:
-                while len(update_queue) > 0:
-                    update_message = update_queue[0]
-                    update_queue[:] = update_queue[1:]
-                    if update_message == 'bar 0':
-                        printf('\033[H\033[07m%s\033[27m', top)
-                    elif update_message == 'bar 1':
+                printf('\033[H\033[2J')
+                update_queue[:] = ['bar 0', 'bar 2']
+            
+            while len(update_queue) > 0:
+                update_message = update_queue[0]
+                update_queue[:] = update_queue[1:]
+                if update_message == 'bar 0':
+                    printf('\033[H\033[07m%s\033[27m', create_interface_top())
+                    print_page()
+                elif update_message == 'bar 1':
+                    middle = create_interface_middle()
+                    if not middle == '':
                         printf('\033[%i;1H%s', max(height - 11, 1), middle)
-                    elif update_message == 'bar 2':
-                        printf('\033[%i;1H%s', max(height - 1, 1), bottom)
+                        printf(''.join('\033[%i;1H\033[2K' % (i + height - 10) for i in range(9)))
+                elif update_message == 'bar 2':
+                    printf('\033[%i;1H%s', max(height - 1, 1), create_interface_bottom())
             
-            if top_selection in (3, ~3):
-                text = copyright_text
-                if first_line_help + height - 3 > len(text):
-                    first_line_help = max(len(text) - height + 3, 0)
-                text = text[first_line_help : first_line_help + height - 3]
-                text = '\n'.join(text)
-                printf('\033[2;1H%s', text)
-            else:
-                blank_lines = max(height - 3, 0)
-                printf(''.join('\033[%i;1H\033[2K' % (i + 2) for i in range(blank_lines)))
-                printf('\033[%i;1H%s', max(height - 11, 1), middle)
-            
+            printf('', flush = True)
             refresh_cond.wait()
         finally:
             refresh_cond.release()
+
+
+def print_page():
+    selection = max(top_selection, ~top_selection)
+    if selection == 0:
+        if height < MIDDLE_REQUIRE_HEIGHT:
+            blank_lines = max(height - 3, 0)
+            printf(''.join('\033[%i;1H\033[2K' % (i + 2) for i in range(blank_lines)))
+        else:
+            blank_lines = max(height - 13, 0)
+            printf(''.join('\033[%i;1H\033[2K' % (i + 2) for i in range(blank_lines)))
+            update_queue.append('bar 1')
+    elif selection == 1:
+        blank_lines = max(height - 3, 0)
+        printf(''.join('\033[%i;1H\033[2K' % (i + 2) for i in range(blank_lines)))
+    elif selection == 2:
+        blank_lines = max(height - 3, 0)
+        printf(''.join('\033[%i;1H\033[2K' % (i + 2) for i in range(blank_lines)))
+    elif selection == 3:
+        global first_line_help
+        text = copyright_text
+        if first_line_help + height - 3 > len(text):
+            first_line_help = max(len(text) - height + 3, 0)
+        text = text[first_line_help : first_line_help + height - 3]
+        text = '\n'.join(text)
+        printf('\033[2;1H%s', text)
 
 
 def create_interface_top():
