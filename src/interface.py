@@ -68,7 +68,14 @@ def run_interface():
     
     # Get current screen width and listen for updates
     global height, width
-    (height, width) = struct.unpack('hh', fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, '1234'))
+    try:
+        (height, width) = struct.unpack('hh', fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, '1234'))
+    except OSError as e:
+        if e.errno == 25:
+            print(_('A terminal on stdout is required.'))
+            sys.exit(1)
+        else:
+            raise e
     signal.signal(signal.SIGWINCH, sigwinch_handler)
     
     # Get TTY settings
