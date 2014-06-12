@@ -103,8 +103,8 @@ def run_interface():
     finally:
         # Restore old TTY setting
         termios.tcsetattr(sys.stdout.fileno(), termios.TCSAFLUSH, saved_stty)
-        # Show cursor and terminate terminal
-        printf('\033[?25h\033[?1049l')
+        # Show cursor, clear screen and terminate terminal
+        printf('\033[?25h\033[H\033[2J\033[?1049l')
 
 
 def sigwinch_handler(_signal, _frame):
