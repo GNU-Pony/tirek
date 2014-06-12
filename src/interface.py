@@ -220,7 +220,7 @@ def next_input():
             else:
                 break
         elif esc == 2:
-            if ('a' <= c <= '<') or ('A' <= c <= 'Z') or (c == '~'):
+            if ('a' <= c <= 'z') or ('A' <= c <= 'Z') or (c == '~'):
                 break
         elif c == '\033':
             esc = 1
