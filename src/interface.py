@@ -152,7 +152,7 @@ def input_loop():
                     middle_selection = ~middle_selection
                     bar_selection = 0
                 elif bar_selection == 2:
-                    if height < MIDDLE_REQUIRE_HEIGHT:
+                    if (height < MIDDLE_REQUIRE_HEIGHT) or (top_selection != ~0):
                         top_selection = ~top_selection
                         bottom_selection = ~bottom_selection
                         bar_selection = 0
@@ -167,7 +167,7 @@ def input_loop():
             refresh_cond.acquire()
             try:
                 if bar_selection == 0:
-                    if height < MIDDLE_REQUIRE_HEIGHT:
+                    if (height < MIDDLE_REQUIRE_HEIGHT) or (top_selection != 0):
                         top_selection = ~top_selection
                         bottom_selection = ~bottom_selection
                         bar_selection = 2
@@ -269,6 +269,10 @@ def create_interface_middle():
     '''
     # Exclude if the screen it too small
     if height < MIDDLE_REQUIRE_HEIGHT:
+        return ''
+    
+    # Exclude if wrong top tab is selected
+    if top_selection not in (0, ~0):
         return ''
     
     # Surround the tab titles with spaces
