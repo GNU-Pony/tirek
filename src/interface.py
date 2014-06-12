@@ -25,25 +25,27 @@ import signal
 import termios
 import threading
 
+_ = lambda x : x
+
 
 MIDDLE_REQUIRE_HEIGHT = 19
 
-top_titles = [ 'Torrents'
-             , 'States and trackers'
-             , 'Preferences'
-             , 'Help'
+top_titles = [ _('Torrents')
+             , _('States and trackers')
+             , _('Preferences')
+             , _('Help')
              ]
     
-middle_titles = [ 'Status'
-                , 'Details'
-                , 'Peers'
-                , 'Options'
+middle_titles = [ _('Status')
+                , _('Details')
+                , _('Peers')
+                , _('Options')
                 ]
 
-bottom_titles = [ 'Connections'
-                , 'Transfer speed'
-                , 'Protocol traffic'
-                , 'DHT nodes'
+bottom_titles = [ _('Connections')
+                , _('Transfer speed')
+                , _('Protocol traffic')
+                , _('DHT nodes')
                 ]
 
 bar_selection = 0
@@ -335,7 +337,7 @@ def create_interface_bottom():
     fields = [patterns[i] % values[i] for i in range(len(patterns))]
     
     # Add title–value delimiter
-    titles = [t + ': ' for t in titles] + ['']
+    titles = [t + _(': ') for t in titles] + ['']
     
     # Calculate length of the text
     len0 = len((sep + '  ').join(fields)) + 2
