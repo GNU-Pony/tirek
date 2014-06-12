@@ -247,6 +247,7 @@ def create_interface_top():
     # Truncate the tab bar if the screen is too small
     if len('  '.join(tabs)) > width:
         tabs = [tabs[selection]]
+        selection = 0
         if len(tabs[0]) > width:
             tabs[0] = tabs[0][1 : -1]
         if len(tabs[0]) > width:
@@ -289,6 +290,7 @@ def create_interface_middle():
     # Truncate the tab bar if the screen is too small
     if len('  '.join(tabs)) > width:
         tabs = [tabs[selection]]
+        selection = 0
         if len(tabs[0]) > width:
             tabs[0] = tabs[0][1 : -1]
         if len(tabs[0]) > width:
