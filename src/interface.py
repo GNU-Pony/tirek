@@ -1,5 +1,5 @@
 # -*- python -*-
-'''
+copyright='''
 tirek — A torrent client with a terminal user interface
 Copyright © 2014  Mattias Andrée (maandree@member.fsf.org)
 
@@ -26,9 +26,12 @@ import termios
 import threading
 
 
+MIDDLE_REQUIRE_HEIGHT = 19
+
+bar_selection = 0
 top_selection = 0
 middle_selection = ~0
-bottom_selection = ~2
+bottom_selection = ~0
 running = True
 
 
@@ -69,25 +72,124 @@ def sigwinch_handler(_signal, _frame):
     '''
     Handler for the SIGWINCH signal
     '''
-    global height, width
+    global height, width, bar_selection, top_selection, middle_selection
     (height, width) = struct.unpack('hh', fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, '1234'))
     refresh_cond.acquire()
     try:
+        if (height < MIDDLE_REQUIRE_HEIGHT) and (bar_selection == 1):
+            top_selection = ~top_selection
+            middle_selection = ~middle_selection
+            bar_selection = 0
         refresh_cond.notify()
     finally:
         refresh_cond.release()
 
 
 def input_loop():
-    global running
+    global running, top_selection, middle_selection, bottom_selection, bar_selection
     while running:
-        input()
-        refresh_cond.acquire()
-        try:
-            running = False
-            refresh_cond.notify()
-        finally:
-            refresh_cond.release()
+        c = next_input()
+        if c == 'q':
+            refresh_cond.acquire()
+            try:
+                running = False
+                refresh_cond.notify()
+            finally:
+                refresh_cond.release()
+        elif c == chr(ord('L') - ord('@')):
+            refresh_cond.acquire()
+            try:
+                refresh_cond.notify()
+            finally:
+                refresh_cond.release()
+        elif c == '\033[C':
+            refresh_cond.acquire()
+            try:
+                if bar_selection == 0:
+                    top_selection = min(top_selection + 1, 3)
+                elif bar_selection == 1:
+                    middle_selection = min(middle_selection + 1, 3)
+                elif bar_selection == 2:
+                    bottom_selection = min(bottom_selection + 1, 3)
+                refresh_cond.notify()
+            finally:
+                refresh_cond.release()
+        elif c == '\033[D':
+            refresh_cond.acquire()
+            try:
+                if bar_selection == 0:
+                    top_selection = max(top_selection - 1, 0)
+                elif bar_selection == 1:
+                    middle_selection = max(middle_selection - 1, 0)
+                elif bar_selection == 2:
+                    bottom_selection = max(bottom_selection - 1, 0)
+                refresh_cond.notify()
+            finally:
+                refresh_cond.release()
+        elif c == '\033[A':
+            refresh_cond.acquire()
+            try:
+                if bar_selection == 1:
+                    top_selection = ~top_selection
+                    middle_selection = ~middle_selection
+                    bar_selection = 0
+                elif bar_selection == 2:
+                    if height < MIDDLE_REQUIRE_HEIGHT:
+                        top_selection = ~top_selection
+                        bottom_selection = ~bottom_selection
+                        bar_selection = 0
+                    else:
+                        middle_selection = ~middle_selection
+                        bottom_selection = ~bottom_selection
+                        bar_selection = 1
+                refresh_cond.notify()
+            finally:
+                refresh_cond.release()
+        elif c == '\033[B':
+            refresh_cond.acquire()
+            try:
+                if bar_selection == 0:
+                    if height < MIDDLE_REQUIRE_HEIGHT:
+                        top_selection = ~top_selection
+                        bottom_selection = ~bottom_selection
+                        bar_selection = 2
+                    else:
+                        top_selection = ~top_selection
+                        middle_selection = ~middle_selection
+                        bar_selection = 1
+                elif bar_selection == 1:
+                    middle_selection = ~middle_selection
+                    bottom_selection = ~bottom_selection
+                    bar_selection = 2
+                refresh_cond.notify()
+            finally:
+                refresh_cond.release()
+
+
+def next_input():
+    '''
+    Read the next input for stdin
+    
+    @return  The next input, can be an escape sequence
+    '''
+    buf = ''
+    esc = 0
+    while True:
+        c = chr(sys.stdin.buffer.read(1)[0])
+        buf += c
+        if esc == 1:
+            if c == '[':
+                esc = 2
+            else:
+                break
+        elif esc == 2:
+            if ('a' <= c <= '<') or ('A' <= c <= 'Z') or (c == '~'):
+                break
+        elif c == '\033':
+            esc = 1
+        else:
+            break
+    return buf
 
 
 def interface_loop():
@@ -153,7 +255,7 @@ def create_interface_middle():
     @return  :str  The text to print in the "middle" of the screen
     '''
     # Exclude if the screen it too small
-    if height < 19:
+    if height < MIDDLE_REQUIRE_HEIGHT:
         return ''
     
     # Tab titles
