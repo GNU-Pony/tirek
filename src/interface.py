@@ -28,12 +28,30 @@ import threading
 
 MIDDLE_REQUIRE_HEIGHT = 19
 
+top_titles = [ 'Torrents'
+             , 'States and trackers'
+             , 'Preferences'
+             , 'Help'
+             ]
+    
+middle_titles = [ 'Status'
+                , 'Details'
+                , 'Peers'
+                , 'Options'
+                ]
+
+bottom_titles = [ 'Connections'
+                , 'Transfer speed'
+                , 'Protocol traffic'
+                , 'DHT nodes'
+                ]
+
 bar_selection = 0
 top_selection = 0
 middle_selection = ~0
 bottom_selection = ~0
 running = True
-
+    
 
 def printf(format, *args):
     text = format % args
@@ -106,11 +124,11 @@ def input_loop():
             refresh_cond.acquire()
             try:
                 if bar_selection == 0:
-                    top_selection = min(top_selection + 1, 3)
+                    top_selection = min(top_selection + 1, len(top_titles) - 1)
                 elif bar_selection == 1:
-                    middle_selection = min(middle_selection + 1, 3)
+                    middle_selection = min(middle_selection + 1, len(middle_titles) - 1)
                 elif bar_selection == 2:
-                    bottom_selection = min(bottom_selection + 1, 3)
+                    bottom_selection = min(bottom_selection + 1, len(bottom_titles) - 1)
                 refresh_cond.notify()
             finally:
                 refresh_cond.release()
@@ -213,15 +231,8 @@ def create_interface_top():
     
     @return  :str  The text to print on the top of the screen
     '''
-    # Tab titles
-    tabs = [ 'Torrents'
-           , 'States and trackers'
-           , 'Preferences'
-           , 'Help'
-           ]
-    
     # Surround the tab titles with spaces
-    tabs = [' %s ' % t for t in tabs]
+    tabs = [' %s ' % t for t in top_titles]
     
     # Get selection and format of selection depending on focus
     if top_selection >= 0:
@@ -258,15 +269,8 @@ def create_interface_middle():
     if height < MIDDLE_REQUIRE_HEIGHT:
         return ''
     
-    # Tab titles
-    tabs = [ 'Status'
-           , 'Details'
-           , 'Peers'
-           , 'Options'
-           ]
-    
     # Surround the tab titles with spaces
-    tabs = [' %s ' % t for t in tabs]
+    tabs = [' %s ' % t for t in middle_titles]
     
     # Get selection and format of selection depending on focus
     if middle_selection >= 0:
@@ -303,11 +307,7 @@ def create_interface_bottom():
     sep = '  '
     
     # Status titles
-    titles = [ 'Connections'
-             , 'Transfer speed'
-             , 'Protocol traffic'
-             , 'DHT nodes'
-             ]
+    titles = [t for t in bottom_titles]
     
     # Status field values
     values = [ (100, 200)
