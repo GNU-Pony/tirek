@@ -32,9 +32,8 @@ copyright_text = copyright[1 : -1]
 :list<str>  Copyright text lines for the overall program
 '''
 
-if 'TERM' not in os.environ:
-    if not os.environ['TERM'].startswith('xterm'):
-        copyright_text.replace('—', '-')
+if not (('TERM' in os.environ) and (os.environ['TERM'].startswith('xterm'))):
+    copyright_text = copyright_text.replace('—', '-')
 copyright_text = copyright_text.split('\n')
 copyright_text[1 : 2] = ['Copyright © %s  %s (%s)' % a for a in authors]
 
