@@ -56,6 +56,8 @@ middle_selection = ~0
 bottom_selection = ~0
 first_line_help = 0
 running = True
+
+update_queue = []
     
 
 def printf(format, *args, flush = True):
@@ -150,6 +152,7 @@ def input_loop():
                     middle_selection = min(middle_selection + 1, len(middle_titles) - 1)
                 elif bar_selection == 2:
                     bottom_selection = min(bottom_selection + 1, len(bottom_titles) - 1)
+                update_queue.append('bar %i' % bar_selection)
                 refresh_cond.notify()
             finally:
                 refresh_cond.release()
@@ -162,12 +165,14 @@ def input_loop():
                     middle_selection = max(middle_selection - 1, 0)
                 elif bar_selection == 2:
                     bottom_selection = max(bottom_selection - 1, 0)
+                update_queue.append('bar %i' % bar_selection)
                 refresh_cond.notify()
             finally:
                 refresh_cond.release()
         elif c == '\033[1;5A':
             refresh_cond.acquire()
             try:
+                update_queue.append('bar %i' % bar_selection)
                 if bar_selection == 1:
                     top_selection = ~top_selection
                     middle_selection = ~middle_selection
@@ -181,12 +186,14 @@ def input_loop():
                         middle_selection = ~middle_selection
                         bottom_selection = ~bottom_selection
                         bar_selection = 1
+                update_queue.append('bar %i' % bar_selection)
                 refresh_cond.notify()
             finally:
                 refresh_cond.release()
         elif c == '\033[1;5B':
             refresh_cond.acquire()
             try:
+                update_queue.append('bar %i' % bar_selection)
                 if bar_selection == 0:
                     if (height < MIDDLE_REQUIRE_HEIGHT) or (top_selection != 0):
                         top_selection = ~top_selection
@@ -200,6 +207,7 @@ def input_loop():
                     middle_selection = ~middle_selection
                     bottom_selection = ~bottom_selection
                     bar_selection = 2
+                update_queue.append('bar %i' % bar_selection)
                 refresh_cond.notify()
             finally:
                 refresh_cond.release()
@@ -258,8 +266,19 @@ def interface_loop():
             middle = create_interface_middle()
             bottom = create_interface_bottom()
             
-            printf('\033[H\033[2J\033[07m%s\033[27m\033[%i;1H%s\033[%i;1H%s',
-                   top, max(height - 11, 1), middle, max(height - 1, 1), bottom)
+            if len(update_queue) == 0:
+                printf('\033[H\033[2J\033[07m%s\033[27m\033[%i;1H%s\033[%i;1H%s',
+                       top, max(height - 11, 1), middle, max(height - 1, 1), bottom)
+            else:
+                while len(update_queue) > 0:
+                    update_message = update_queue[0]
+                    update_queue[:] = update_queue[1:]
+                    if update_message == 'bar 0':
+                        printf('\033[H\033[07m%s\033[27m', top)
+                    elif update_message == 'bar 1':
+                        printf('\033[%i;1H%s', max(height - 11, 1), middle)
+                    elif update_message == 'bar 2':
+                        printf('\033[%i;1H%s', max(height - 1, 1), bottom)
             
             if top_selection in (3, ~3):
                 text = copyright_text
@@ -268,6 +287,10 @@ def interface_loop():
                 text = text[first_line_help : first_line_help + height - 3]
                 text = '\n'.join(text)
                 printf('\033[2;1H%s', text)
+            else:
+                blank_lines = max(height - 3, 0)
+                printf(''.join('\033[%i;1H\033[2K' % (i + 2) for i in range(blank_lines)))
+                printf('\033[%i;1H%s', max(height - 11, 1), middle)
             
             refresh_cond.wait()
         finally:
