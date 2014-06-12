@@ -1,5 +1,5 @@
 # -*- python -*-
-copyright='''
+'''
 tirek — A torrent client with a terminal user interface
 Copyright © 2014  Mattias Andrée (maandree@member.fsf.org)
 
@@ -24,6 +24,8 @@ import struct
 import signal
 import termios
 import threading
+
+from copyright import copyright_text
 
 _ = lambda x : x
 
@@ -52,13 +54,15 @@ bar_selection = 0
 top_selection = 0
 middle_selection = ~0
 bottom_selection = ~0
+first_line_help = 0
 running = True
     
 
-def printf(format, *args):
+def printf(format, *args, flush = True):
     text = format % args
     sys.stdout.buffer.write(text.encode('utf-8'))
-    sys.stdout.buffer.flush()
+    if flush:
+        sys.stdout.buffer.flush()
 
 
 def run_interface():
@@ -121,7 +125,7 @@ def sigwinch_handler(_signal, _frame):
 
 
 def input_loop():
-    global running, top_selection, middle_selection, bottom_selection, bar_selection
+    global running, top_selection, middle_selection, bottom_selection, bar_selection, first_line_help
     while running:
         c = next_input()
         if c == 'q':
@@ -161,7 +165,7 @@ def input_loop():
                 refresh_cond.notify()
             finally:
                 refresh_cond.release()
-        elif c == '\033[A':
+        elif c == '\033[1;5A':
             refresh_cond.acquire()
             try:
                 if bar_selection == 1:
@@ -180,7 +184,7 @@ def input_loop():
                 refresh_cond.notify()
             finally:
                 refresh_cond.release()
-        elif c == '\033[B':
+        elif c == '\033[1;5B':
             refresh_cond.acquire()
             try:
                 if bar_selection == 0:
@@ -199,6 +203,22 @@ def input_loop():
                 refresh_cond.notify()
             finally:
                 refresh_cond.release()
+        elif c == '\033[A':
+            if top_selection == 3:
+                refresh_cond.acquire()
+                try:
+                    first_line_help = max(first_line_help - 1, 0)
+                    refresh_cond.notify()
+                finally:
+                    refresh_cond.release()
+        elif c == '\033[B':
+            if top_selection == 3:
+                refresh_cond.acquire()
+                try:
+                    first_line_help += 1
+                    refresh_cond.notify()
+                finally:
+                    refresh_cond.release()
 
 
 def next_input():
@@ -230,6 +250,7 @@ def next_input():
 
 
 def interface_loop():
+    global first_line_help
     while running:
         refresh_cond.acquire()
         try:
@@ -239,6 +260,15 @@ def interface_loop():
             
             printf('\033[H\033[2J\033[07m%s\033[27m\033[%i;1H%s\033[%i;1H%s',
                    top, max(height - 11, 1), middle, max(height - 1, 1), bottom)
+            
+            if top_selection in (3, ~3):
+                text = copyright_text
+                if first_line_help + height - 3 > len(text):
+                    first_line_help = max(len(text) - height + 3, 0)
+                text = text[first_line_help : first_line_help + height - 3]
+                text = '\n'.join(text)
+                printf('\033[2;1H%s', text)
+            
             refresh_cond.wait()
         finally:
             refresh_cond.release()
